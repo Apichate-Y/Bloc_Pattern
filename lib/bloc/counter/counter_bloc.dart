@@ -1,25 +1,84 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:flutter/semantics.dart';
 import 'package:meta/meta.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part 'counter_event.dart';
 
 part 'counter_state.dart';
 
-class CounterBloc extends Bloc<CounterEvent, int> {
-  CounterBloc() : super(0);
+const PREF_COUNT = "count";
+
+class CounterBloc extends Bloc<CounterEvent, CounterState> {
+  CounterBloc() : super(InitialCounterState());
 
   @override
-  Stream<int> mapEventToState(CounterEvent event) async* {
+  Stream<CounterState> mapEventToState(CounterEvent event) async* {
     if (event is IncrementCounter) {
-      yield state + event.count;
+      yield* mapIncrementCounterToState(event);
     } else if (event is DecrementCounter) {
-      yield state - event.count;
+      yield* mapDecrementCounterToState(event);
     } else if (event is ResetCounter) {
-      yield 0;
-    } else {
-      addError(Exception('unsupported event'));
+      yield* mapResetCounterToState();
+    } else if (event is SaveCounter) {
+      yield* mapSaveCounterToState(event);
+    } else if (event is LoadCounter) {
+      yield* mapLoadCounterToState();
+    }
+  }
+
+  Stream<CounterState> mapSaveCounterToState(SaveCounter event) async* {
+    try {
+      var count = (state as LoadedCounterState).count;
+      SharedPreferences preferences = await SharedPreferences.getInstance();
+      preferences.setInt(PREF_COUNT, count);
+      yield SaveCounterState(count);
+      event.saveCounterObserver.onSuccess("Save Successfully");
+    } catch (e) {
+      event.saveCounterObserver.onError(e.toString());
+      yield ErrorCounterState(e.toString());
+    }
+  }
+
+  Stream<CounterState> mapIncrementCounterToState(
+      IncrementCounter event) async* {
+    try {
+      var count = (state as LoadedCounterState).count;
+      yield LoadedCounterState(count + event.count);
+    } catch (e) {
+      yield ErrorCounterState(e.toString());
+    }
+  }
+
+  Stream<CounterState> mapDecrementCounterToState(
+      DecrementCounter event) async* {
+    try {
+      var count = (state as LoadedCounterState).count;
+      yield LoadedCounterState(count - event.count);
+    } catch (e) {
+      yield ErrorCounterState(e.toString());
+    }
+  }
+
+  Stream<CounterState> mapResetCounterToState() async* {
+    try {
+      yield LoadedCounterState(0);
+    } catch (e) {
+      yield ErrorCounterState(e.toString());
+    }
+  }
+
+  Stream<CounterState> mapLoadCounterToState() async* {
+    try {
+      yield LoadingCounterState();
+      SharedPreferences preferences = await SharedPreferences.getInstance();
+      final count = preferences.getInt(PREF_COUNT) ?? 0;
+      await Future.delayed(Duration(seconds: 2));
+      yield LoadedCounterState(count);
+    } catch (e) {
+      yield ErrorCounterState(e.toString());
     }
   }
 }

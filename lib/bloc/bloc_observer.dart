@@ -7,11 +7,11 @@ class FlowBlocObserver extends BlocObserver {
     super.onEvent(bloc, event);
   }
 
-  @override
-  void onChange(Cubit cubit, Change change) {
-    print(change);
-    super.onChange(cubit, change);
-  }
+  // @override
+  // void onChange(Cubit cubit, Change change) {
+  //   print(change);
+  //   super.onChange(cubit, change);
+  // }
 
   @override
   void onError(Cubit cubit, Object error, StackTrace stacktrace) {
